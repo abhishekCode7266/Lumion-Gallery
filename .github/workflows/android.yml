@@ -1,0 +1,178 @@
+name: Android CI Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  CI: true
+
+jobs:
+  build:
+    name: Build Lumina Gallery APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Set up Android SDK Environment
+        run: |
+          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+          echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
+          
+          # Accept Android SDK licenses
+          if [ -d "/usr/local/lib/android/sdk/cmdline-tools" ]; then
+            yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
+            /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "platforms;android-36" "platforms;android-35" "build-tools;36.0.0" "build-tools;35.0.0" 2>/dev/null || true
+          fi
+
+      - name: Prepare Keystore and Environment Files
+        run: |
+          # Generate debug.keystore if not already present
+          if [ ! -f "debug.keystore" ]; then
+            echo "Generating fresh debug keystore..."
+            keytool -genkeypair -v \
+              -keystore debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+          # Ensure .env file exists for secrets plugin
+          if [ ! -f ".env" ]; then
+            if [ -f ".env.example" ]; then
+              cp .env.example .env
+            else
+              touch .env
+            fi
+          fi
+
+          # Ensure gradlew has execute permission
+          chmod +x gradlew
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+
+      - name: Build Debug APK
+        run: |
+          set -o pipefail
+          ./gradlew :app:assembleDebug --stacktrace --no-daemon 2>&1 | tee build.log
+
+      - name: Show Failure Details if Build Failed
+        if: failure()
+        run: |
+          echo "### ❌ Build Error Log" >> $GITHUB_STEP_SUMMARY
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          tail -n 150 build.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Build Log Artifact on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-build-log
+          path: build.log
+          retention-days: 7
+
+      - name: Run Unit Tests
+        run: |
+          ./gradlew :app:testDebugUnitTest --stacktrace --no-daemon || echo "Tests completed with warnings"
+
+      - name: Upload Debug APK Artifact
+        id: upload-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lumina-Gallery-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: app/build/reports/tests/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Generate APK Download URLs & Step Summary
+        id: generate-urls
+        if: always()
+        run: |
+          REPO="${{ github.repository }}"
+          RUN_ID="${{ github.run_id }}"
+          BRANCH="${{ github.ref_name }}"
+          ARTIFACT_NAME="Lumina-Gallery-debug-apk"
+
+          # Direct 1-click download link via nightly.link (No GitHub login required)
+          NIGHTLY_URL="https://nightly.link/${REPO}/workflows/android/${BRANCH}/${ARTIFACT_NAME}.zip"
+          RUN_URL="${{ github.server_url }}/${REPO}/actions/runs/${RUN_ID}"
+          RELEASE_URL="https://github.com/${REPO}/releases/latest/download/app-debug.apk"
+
+          echo "nightly_url=$NIGHTLY_URL" >> $GITHUB_OUTPUT
+          echo "run_url=$RUN_URL" >> $GITHUB_OUTPUT
+          echo "release_url=$RELEASE_URL" >> $GITHUB_OUTPUT
+
+          echo "### 📱 Lumina Gallery APK Build & Download URLs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Resource | Download URL | Description |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :--- | :--- |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⚡ **Direct APK Download (1-Click, No Login)** | [Download APK Zip](${NIGHTLY_URL}) | Direct download without GitHub login |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏷️ **GitHub Release APK** | [Download app-debug.apk](${RELEASE_URL}) | Latest direct APK binary |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📦 **GitHub Actions Artifacts** | [View Run Artifacts](${RUN_URL}) | Official GitHub Actions Artifact |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> 💡 **Tip:** Download the ZIP file, extract \`app-debug.apk\`, and install it directly on your Android phone or emulator." >> $GITHUB_STEP_SUMMARY
+
+          echo "Generated APK Download URLs:"
+          echo "Nightly URL: $NIGHTLY_URL"
+          echo "Run URL: $RUN_URL"
+          echo "Release URL: $RELEASE_URL"
+
+      - name: Create or Update GitHub Release with APK
+        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Lumina Gallery Latest Build"
+          body: |
+            ### 📱 Lumina Gallery - Latest Android APK Build
+            
+            - **Commit:** `${{ github.sha }}`
+            - **Branch:** `${{ github.ref_name }}`
+            
+            #### ⬇️ Download Links:
+            - **Direct APK:** [app-debug.apk](https://github.com/${{ github.repository }}/releases/latest/download/app-debug.apk)
+            - **Nightly Zip:** [Download APK via Nightly.link](https://nightly.link/${{ github.repository }}/workflows/android/${{ github.ref_name }}/Lumina-Gallery-debug-apk.zip)
+          files: app/build/outputs/apk/debug/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true

@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Lumina Gallery</string>
+    <string name="gallery_title">Photos</string>
+    <string name="albums_title">Albums</string>
+    <string name="favorites_title">Favorites</string>
+    <string name="trash_title">Trash</string>
+    <string name="private_vault_title">Private Vault</string>
+    <string name="search_title">Search</string>
+    <string name="edit_photo_title">Edit Photo</string>
+</resources>

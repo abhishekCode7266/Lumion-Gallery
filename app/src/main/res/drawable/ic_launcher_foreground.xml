@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Subtle drop shadow -->
+    <path
+        android:fillColor="#33000000"
+        android:pathData="M30,26h48c4.4,0 8,3.6 8,8v42c0,4.4 -3.6,8 -8,8H30c-4.4,0 -8,-3.6 -8,-8V34c0,-4.4 3.6,-8 8,-8z" />
+    <!-- Outer photo card / frame -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M29,24h50c4.4,0 8,3.6 8,8v42c0,4.4 -3.6,8 -8,8H29c-4.4,0 -8,-3.6 -8,-8V32c0,-4.4 3.6,-8 8,-8z" />
+    <!-- Inner image content canvas (sky) -->
+    <path
+        android:fillColor="#E0E7FF"
+        android:pathData="M33,28h42c2.2,0 4,1.8 4,4v34c0,2.2 -1.8,4 -4,4H33c-2.2,0 -4,-1.8 -4,-4V32c0,-2.2 1.8,-4 4,-4z" />
+    <!-- Sun -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M43,39m-5,0a5,5 0 1,0 10,0a5,5 0 1,0 -10,0" />
+    <!-- Primary mountain ridge -->
+    <path
+        android:fillColor="#6366F1"
+        android:pathData="M30,66l14,-17l10,12l15,-18l10,23H30z" />
+    <!-- Secondary mountain ridge with accent -->
+    <path
+        android:fillColor="#4338CA"
+        android:pathData="M48,66l6,-7l7,7H48z" />
+    <!-- Lens spark / star accent in top right of frame -->
+    <path
+        android:fillColor="#EEF2FF"
+        android:pathData="M69,33l1.5,3.5l3.5,1.5l-3.5,1.5l-1.5,3.5l-1.5,-3.5l-3.5,-1.5l3.5,-1.5z" />
+</vector>

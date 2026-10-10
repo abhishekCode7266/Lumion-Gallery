@@ -1,0 +1,6 @@
+{
+  "name": "Lumina Gallery",
+  "description": "A modern, responsive photo and video gallery featuring albums, photo editing tools, smart search, private vault, trash recovery, and seamless media viewer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
